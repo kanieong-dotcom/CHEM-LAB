@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="h-full scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>3D 原子結構與微觀粒子探究</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Three.js 及其軌道控制器 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; font-family: 'Noto Sans TC', sans-serif; -webkit-tap-highlight-color: transparent; }
+    body { background-color: #030712; color: #f8fafc; min-height: 100vh; }
+    canvas { touch-action: none; display: block; }
+    
+    .touch-btn { 
+      transition: all 0.2s ease; 
+      min-height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+    }
+    .touch-btn:active:not(:disabled) { transform: scale(0.96); }
+    .touch-btn:disabled { opacity: 0.4; cursor: not-allowed; filter: grayscale(0.8); }
+
+    .q-btn { 
+      transition: all 0.2s ease; 
+      min-height: 40px;
+      user-select: none;
+    }
+    .q-btn:hover:not(:disabled) { background-color: #1e293b; }
+    .q-btn.correct { background-color: #064e3b; border-color: #10b981; color: #a7f3d0; }
+    .q-btn.wrong { background-color: #7f1d1d; border-color: #ef4444; color: #fecaca; }
+
+    .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #0f172a; border-radius: 8px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 8px; }
+
+    .fade-in { animation: fadeIn 0.5s ease-out forwards; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body class="p-3 md:p-6 flex flex-col items-center">
+
+<div class="max-w-7xl w-full relative">
+  <!-- 頁頭 -->
+  <header class="text-center mb-6">
+    <div class="inline-block bg-sky-500/10 text-sky-400 border border-sky-500/20 px-4 py-1.5 rounded-full text-xs font-bold mb-2 tracking-wider">
+      初中化學 • 物質構成的奧秘
+    </div>
+    <h1 class="text-2xl md:text-3xl font-black text-white tracking-tight mb-3">
+      ⚛️ 3D 原子結構與微觀粒子探索
+    </h1>
+
+    <!-- 醒目版權標籤 1：頂部頁頭 -->
+    <div class="inline-block bg-slate-900/90 border border-amber-500/40 px-5 py-2.5 rounded-2xl shadow-xl backdrop-blur-md max-w-2xl mx-auto">
+      <div class="text-xs md:text-sm font-black text-amber-400 tracking-wide mb-0.5">
+        © 2026 Fatima Girls' School. Developed by Mr. Jimmy. All Rights Reserved.
+      </div>
+      <div class="text-[11px] md:text-xs text-slate-300 font-medium">
+        本系統／文件由 Fatima Girls' School Mr. Jimmy 製作，版權所有，未經許可請勿轉載。
+      </div>
+    </div>
+  </header>
+
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start transition-all duration-500" id="main-grid">
+    
+    <!-- ==================== 第一階段：3D 原子模型區 ==================== -->
+    <section id="model-section" class="lg:col-span-12 flex flex-col gap-4 transition-all duration-500">
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-2xl relative">
+        
+        <!-- 鎖定提示橫幅 (預設隱藏) -->
+        <div id="lock-banner" class="hidden mb-3 bg-amber-500/10 border border-amber-500/30 text-amber-300 px-3 py-2 rounded-xl text-xs font-bold text-center flex items-center justify-center gap-2">
+          <span>🔒 進入答題階段：模型參數已鎖定，請對照當前模型數據回答問題。</span>
+        </div>
+
+        <!-- 3D 畫布與圖例 -->
+        <div class="relative w-full h-[400px] md:h-[480px] bg-slate-950 rounded-xl border border-slate-800/80 overflow-hidden shadow-inner mb-4">
+          <div id="canvas-container-3d" class="w-full h-full"></div>
+
+          <!-- 左上角圖例 Overlay -->
+          <div class="absolute top-3 left-3 bg-slate-900/85 backdrop-blur-md border border-slate-800 p-2.5 rounded-xl text-xs space-y-1.5 shadow-lg pointer-events-none">
+            <div class="font-bold text-sky-400 mb-1">🔍 微觀微粒標示</div>
+            <div class="flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-red-500 border border-red-300 flex items-center justify-center text-[9px] font-black text-white">+</span>
+              <span class="text-slate-200">質子 (+ 電荷) — 原子核</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.8)]"></span>
+              <span class="text-slate-200">中子 (不帶電) — 原子核</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(0,242,254,0.8)]"></span>
+              <span class="text-slate-200">核外電子 (− 電荷) — 電子軌道</span>
+            </div>
+          </div>
+
+          <!-- 元素卡片標示 Overlay -->
+          <div class="absolute top-3 right-3 bg-slate-900/85 backdrop-blur-md border border-sky-500/30 p-2.5 rounded-xl text-center min-w-[95px]">
+            <div class="text-[10px] text-slate-400">相對原子質量 <span id="card-mass" class="text-sky-300 font-bold">12</span></div>
+            <div class="text-2xl font-black text-white my-0.5" id="card-symbol">C</div>
+            <div class="text-xs font-bold text-sky-400" id="card-name">碳</div>
+            <div class="text-[10px] text-slate-400">質子數/序數 <span id="card-atomic" class="text-sky-300 font-bold">6</span></div>
+          </div>
+        </div>
+
+        <!-- 操控與數據面板 -->
+        <div id="control-panel" class="bg-slate-950/60 p-4 rounded-xl border border-slate-800/80 space-y-4 transition-all duration-300">
+          
+          <!-- 數據實時顯示板 -->
+          <div class="grid grid-cols-3 gap-3 text-center">
+            <div class="bg-slate-900/80 border border-slate-800 p-2.5 rounded-xl">
+              <div class="text-[11px] text-slate-400 mb-0.5">核電荷數 (質子)</div>
+              <div id="val-charge" class="text-base font-bold text-red-400">+6</div>
+            </div>
+            <div class="bg-slate-900/80 border border-slate-800 p-2.5 rounded-xl">
+              <div class="text-[11px] text-slate-400 mb-0.5">核外電子數</div>
+              <div id="val-electrons" class="text-base font-bold text-cyan-400">6</div>
+            </div>
+            <div class="bg-slate-900/80 border border-slate-800 p-2.5 rounded-xl">
+              <div class="text-[11px] text-slate-400 mb-0.5">相對原子質量</div>
+              <div id="val-atomic-mass" class="text-base font-bold text-sky-400">12</div>
+            </div>
+          </div>
+
+          <!-- 微調滑桿 -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-800/80">
+            <div class="space-y-1">
+              <div class="flex justify-between text-xs">
+                <span class="text-slate-300 font-medium">質子數 (Z)：</span>
+                <span id="proton-val" class="font-bold text-red-400">6</span>
+              </div>
+              <div class="flex gap-2 items-center">
+                <button onclick="changeProton(-1)" class="btn-step bg-slate-800 hover:bg-slate-700 text-white w-8 h-8 rounded-lg font-bold text-sm touch-btn">-</button>
+                <input type="range" id="proton-range" min="1" max="18" value="6" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-red-500">
+                <button onclick="changeProton(1)" class="btn-step bg-slate-800 hover:bg-slate-700 text-white w-8 h-8 rounded-lg font-bold text-sm touch-btn">+</button>
+              </div>
+            </div>
+
+            <div class="space-y-1">
+              <div class="flex justify-between text-xs">
+                <span class="text-slate-300 font-medium">中子數 (N)：</span>
+                <span id="neutron-val" class="font-bold text-blue-400">6</span>
+              </div>
+              <div class="flex gap-2 items-center">
+                <button onclick="changeNeutron(-1)" class="btn-step bg-slate-800 hover:bg-slate-700 text-white w-8 h-8 rounded-lg font-bold text-sm touch-btn">-</button>
+                <input type="range" id="neutron-range" min="0" max="22" value="6" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500">
+                <button onclick="changeNeutron(1)" class="btn-step bg-slate-800 hover:bg-slate-700 text-white w-8 h-8 rounded-lg font-bold text-sm touch-btn">+</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- 進入問題按鈕 -->
+        <button id="btn-go-questions" onclick="startQuestions()" class="w-full mt-4 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-sm md:text-base rounded-xl transition shadow-[0_0_20px_rgba(79,70,229,0.4)] touch-btn gap-2">
+          模型探索完成，進入問題探究 ➔
+        </button>
+      </div>
+    </section>
+
+    <!-- ==================== 第二階段：問題區 (預設隱藏) ==================== -->
+    <section id="questions-section" class="hidden lg:col-span-5 flex-col h-full fade-in">
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 md:p-5 shadow-xl flex flex-col h-full sticky top-4">
+        <h2 class="text-base md:text-lg font-bold text-white mb-1 flex items-center gap-2">
+          <span class="bg-indigo-500 text-white w-6 h-6 rounded flex items-center justify-center text-xs">練</span>
+          原子結構規律探究
+        </h2>
+        <p class="text-xs text-slate-400 mb-4 pb-3 border-b border-slate-800">結合左側鎖定的 3D 模型與數據回答問題：</p>
+
+        <div class="overflow-y-auto custom-scrollbar pr-1 flex-grow max-h-[58vh] space-y-4">
+          
+          <!-- 問題 1 -->
+          <div class="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800 space-y-2">
+            <span class="text-xs font-bold text-indigo-400 block">Q1. 探究原子電性平衡</span>
+            <p class="text-xs text-slate-200 font-medium leading-relaxed">
+              觀察 3D 模型，原子核內的質子帶正電荷（+），核外的電子帶負電荷（−）。為什麼原子整體呈現「電中性」？
+            </p>
+            <div class="space-y-1.5" id="q1-opts">
+              <button onclick="answerQ(1, false, this)" class="q-btn w-full text-left px-3 py-2 rounded-lg border border-slate-800 bg-slate-900 text-xs text-slate-300">A. 因為中子不帶電，中和了正負電荷</button>
+              <button onclick="answerQ(1, true, this)" class="q-btn w-full text-left px-3 py-2 rounded-lg border border-slate-800 bg-slate-900 text-xs text-slate-300">B. 因為「質子數（核電荷數）」等於「核外電子數」</button>
+            </div>
+            <div id="q1-msg" class="hidden mt-2 text-xs font-bold px-3 py-2 rounded"></div>
+          </div>
+
+          <!-- 問題 2 -->
+          <div class="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800 space-y-2">
+            <span class="text-xs font-bold text-indigo-400 block">Q2. 探究元素種類決定因素</span>
+            <p class="text-xs text-slate-200 font-medium leading-relaxed">
+              當我們調節滑桿改變微粒數量時，決定「這屬於哪種元素」的核心依據是什麼？
+            </p>
+            <div class="space-y-1.5" id="q2-opts">
+              <button onclick="answerQ(2, true, this)" class="q-btn w-full text-left px-3 py-2 rounded-lg border border-slate-800 bg-slate-900 text-xs text-slate-300">A. 原子核內的「質子數」（核電荷數）</button>
+              <button onclick="answerQ(2, false, this)" class="q-btn w-full text-left px-3 py-2 rounded-lg border border-slate-800 bg-slate-900 text-xs text-slate-300">B. 原子核內的中子數</button>
+            </div>
+            <div id="q2-msg" class="hidden mt-2 text-xs font-bold px-3 py-2 rounded"></div>
+          </div>
+
+          <!-- 問題 3 -->
+          <div class="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800 space-y-2">
+            <span class="text-xs font-bold text-indigo-400 block">Q3. 探究原子質量的分布</span>
+            <p class="text-xs text-slate-200 font-medium leading-relaxed">
+              公式「相對原子質量 ≈ 質子數 + 中子數」成立，這說明電子的質量狀況如何？
+            </p>
+            <div class="space-y-1.5" id="q3-opts">
+              <button onclick="answerQ(3, true, this)" class="q-btn w-full text-left px-3 py-2 rounded-lg border border-slate-800 bg-slate-900 text-xs text-slate-300">A. 電子質量極小，原子的質量主要集中在原子核上</button>
+              <button onclick="answerQ(3, false, this)" class="q-btn w-full text-left px-3 py-2 rounded-lg border border-slate-800 bg-slate-900 text-xs text-slate-300">B. 電子質量與質子相當，不可忽略</button>
+            </div>
+            <div id="q3-msg" class="hidden mt-2 text-xs font-bold px-3 py-2 rounded"></div>
+          </div>
+
+          <!-- 問題 4 -->
+          <div class="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800 space-y-2">
+            <span class="text-xs font-bold text-indigo-400 block">Q4. 探究同位素原子</span>
+            <p class="text-xs text-slate-200 font-medium leading-relaxed">
+              如果兩個原子的質子數相同（如都為 6），但中子數不同（分別為 6 和 8），它們屬於：
+            </p>
+            <div class="space-y-1.5" id="q4-opts">
+              <button onclick="answerQ(4, true, this)" class="q-btn w-full text-left px-3 py-2 rounded-lg border border-slate-800 bg-slate-900 text-xs text-slate-300">A. 同一種元素的不同原子（同位素）</button>
+              <button onclick="answerQ(4, false, this)" class="q-btn w-full text-left px-3 py-2 rounded-lg border border-slate-800 bg-slate-900 text-xs text-slate-300">B. 兩種不同的化學元素</button>
+            </div>
+            <div id="q4-msg" class="hidden mt-2 text-xs font-bold px-3 py-2 rounded"></div>
+          </div>
+
+        </div>
+
+        <!-- 進入總結按鈕 -->
+        <div class="mt-4 pt-3 border-t border-slate-800">
+          <button id="btn-go-summary" onclick="startSummary()" class="w-full py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-black text-sm md:text-base rounded-xl transition shadow-[0_0_15px_rgba(147,51,234,0.4)] touch-btn gap-2">
+             進行總結 ➔
+          </button>
+        </div>
+      </div>
+    </section>
+    
+    <!-- ==================== 第三階段：總結區 (預設隱藏) ==================== -->
+    <section id="summary-section" class="hidden lg:col-span-12 mt-2 fade-in pb-4">
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 md:p-6 shadow-xl">
+        <h2 class="text-lg md:text-xl font-black text-sky-400 mb-5 flex items-center gap-2">
+          📊 原子結構與微觀構成規律總結
+        </h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          
+          <div class="bg-slate-950/80 border border-sky-500/30 rounded-xl p-4 flex flex-col justify-between shadow-lg">
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-bold text-sky-400 bg-sky-950/80 border border-sky-800 px-2.5 py-0.5 rounded-full">規律 1</span>
+                <span class="text-xl">⚖️</span>
+              </div>
+              <h3 class="text-base font-bold text-white mb-2">電性平衡關係</h3>
+              <p class="text-xs text-slate-400 leading-relaxed">
+                在中性原子中，<strong class="text-sky-300">核電荷數 = 質子數 = 核外電子數</strong>。質子帶的正電荷與電子帶的負電荷電量相等、電性相反，故原子整體不顯電性。
+              </p>
+            </div>
+          </div>
+
+          <div class="bg-slate-950/80 border border-emerald-500/30 rounded-xl p-4 flex flex-col justify-between shadow-lg">
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-bold text-emerald-400 bg-emerald-950/80 border border-emerald-800 px-2.5 py-0.5 rounded-full">規律 2</span>
+                <span class="text-xl">🏷️</span>
+              </div>
+              <h3 class="text-base font-bold text-white mb-2">元素種類決定因素</h3>
+              <p class="text-xs text-slate-400 leading-relaxed">
+                <strong class="text-emerald-300">質子數決定元素種類</strong>。同種元素的所有原子質子數必定相同；若質子數相同而中子數不同，則互為同位素。
+              </p>
+            </div>
+          </div>
+
+          <div class="bg-slate-950/80 border border-purple-500/30 rounded-xl p-4 flex flex-col justify-between shadow-lg">
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-bold text-purple-400 bg-purple-950/80 border border-purple-800 px-2.5 py-0.5 rounded-full">規律 3</span>
+                <span class="text-xl">🏋️</span>
+              </div>
+              <h3 class="text-base font-bold text-white mb-2">質量集中於原子核</h3>
+              <p class="text-xs text-slate-400 leading-relaxed">
+                電子的質量極小（約為質子質量的 1/1836），因此原子的質量幾乎全部集中在原子核上。<strong class="text-purple-300">相對原子質量 ≈ 質子數 + 中子數</strong>。
+              </p>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="text-center">
+          <button onclick="location.reload()" class="px-8 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl text-base font-bold transition touch-btn inline-flex">
+            🔄 重新開始探索
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- 醒目版權標籤 2：頁腳底部固定區域 -->
+  <footer class="mt-8 pt-6 border-t border-slate-800/80 text-center pb-8">
+    <div class="inline-block bg-slate-900/80 border border-slate-700/60 rounded-xl px-6 py-3 max-w-2xl mx-auto space-y-1 shadow-lg">
+      <p class="font-black text-sky-400 text-xs md:text-sm tracking-wide">
+        © 2026 Fatima Girls' School. Developed by Mr. Jimmy. All Rights Reserved.
+      </p>
+      <p class="text-slate-300 text-xs font-medium">
+        本系統／文件由 Fatima Girls' School Mr. Jimmy 製作，版權所有，未經許可請勿轉載。
+      </p>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+  // 元素資料庫
+  const ELEMENTS_3D = [
+    {z:1, s:'H', name:'氫', n:0},  {z:2, s:'He', name:'氦', n:2},
+    {z:3, s:'Li', name:'鋰', n:4}, {z:4, s:'Be', name:'鈹', n:5},
+    {z:5, s:'B', name:'硼', n:6},  {z:6, s:'C', name:'碳', n:6},
+    {z:7, s:'N', name:'氮', n:7},  {z:8, s:'O', name:'氧', n:8},
+    {z:9, s:'F', name:'氟', n:10}, {z:10, s:'Ne', name:'氖', n:10},
+    {z:11, s:'Na', name:'鈉', n:12}, {z:12, s:'Mg', name:'鎂', n:12},
+    {z:13, s:'Al', name:'鋁', n:14}, {z:14, s:'Si', name:'矽', n:14},
+    {z:15, s:'P', name:'磷', n:16},  {z:16, s:'S', name:'硫', n:16},
+    {z:17, s:'Cl', name:'氯', n:18}, {z:18, s:'Ar', name:'氬', n:22}
+  ];
+
+  function getElemData3D(z) {
+    return ELEMENTS_3D.find(e => e.z === z) || {z:z, s:`Z${z}`, name:'未知元素', n:z};
+  }
+
+  // Three.js 狀態與變數
+  let scene3D, camera3D, renderer3D, controls3D;
+  let nucleusGroup3D, electronsGroup3D, orbitsGroup3D;
+  let electronList = [];
+  let state = { locked: false };
+
+  // 動態生成帶「+」號的質子紋理
+  function createProtonTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+
+    // 底色紅色
+    ctx.fillStyle = '#ef4444';
+    ctx.beginPath();
+    ctx.arc(128, 128, 120, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 白色 + 號
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '900 170px "Noto Sans TC", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('+', 128, 134);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    return texture;
+  }
+
+  const protonTexture = createProtonTexture();
+
+  function init3D() {
+    const container = document.getElementById('canvas-container-3d');
+    if (!container) return;
+
+    scene3D = new THREE.Scene();
+    scene3D.fog = new THREE.FogExp2(0x030712, 0.012);
+
+    // 放大原子：拉近攝影機 (從原本 24 縮短為 13)
+    camera3D = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+    camera3D.position.set(0, 5, 13);
+
+    renderer3D = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer3D.setSize(container.clientWidth, container.clientHeight);
+    renderer3D.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    container.appendChild(renderer3D.domElement);
+
+    controls3D = new THREE.OrbitControls(camera3D, renderer3D.domElement);
+    controls3D.enableDamping = true;
+    controls3D.dampingFactor = 0.05;
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
+    scene3D.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    dirLight.position.set(15, 25, 15);
+    scene3D.add(dirLight);
+
+    nucleusGroup3D = new THREE.Group();
+    orbitsGroup3D = new THREE.Group();
+    electronsGroup3D = new THREE.Group();
+
+    scene3D.add(nucleusGroup3D);
+    scene3D.add(orbitsGroup3D);
+    scene3D.add(electronsGroup3D);
+
+    window.addEventListener('resize', resize3DCanvas);
+    updateUI3D();
+  }
+
+  function resize3DCanvas() {
+    const container = document.getElementById('canvas-container-3d');
+    if (!container || !renderer3D || !camera3D) return;
+    const w = container.clientWidth;
+    const h = container.clientHeight;
+    if (w > 0 && h > 0) {
+      camera3D.aspect = w / h;
+      camera3D.updateProjectionMatrix();
+      renderer3D.setSize(w, h);
+    }
+  }
+
+  // 質子與中子材質
+  const protonGeo = new THREE.SphereGeometry(0.48, 24, 24);
+  const neutronGeo = new THREE.SphereGeometry(0.48, 24, 24);
+
+  const protonMat = new THREE.MeshStandardMaterial({ 
+    map: protonTexture, 
+    roughness: 0.25, 
+    metalness: 0.1 
+  });
+  
+  const neutronMat = new THREE.MeshStandardMaterial({ 
+    color: 0x3b82f6, 
+    roughness: 0.3, 
+    emissive: 0x001133 
+  });
+
+  // 電子材質
+  const electronGeo = new THREE.SphereGeometry(0.22, 16, 16);
+  const electronMat = new THREE.MeshStandardMaterial({
+    color: 0x00f2fe,
+    emissive: 0x0284c7,
+    roughness: 0.1,
+    metalness: 0.8
+  });
+
+  // 計算排佈電子層 (2, 8, 8)
+  function getShellDistribution(Z) {
+    const capacity = [2, 8, 8];
+    const shells = [];
+    let remaining = Z;
+    for (let cap of capacity) {
+      if (remaining <= 0) break;
+      let count = Math.min(remaining, cap);
+      shells.push(count);
+      remaining -= count;
+    }
+    return shells;
+  }
+
+  function updateAtomModel3D(Z, N) {
+    if (!nucleusGroup3D) return;
+
+    // 清空舊模型
+    while(nucleusGroup3D.children.length > 0) nucleusGroup3D.remove(nucleusGroup3D.children[0]);
+    while(orbitsGroup3D.children.length > 0) orbitsGroup3D.remove(orbitsGroup3D.children[0]);
+    while(electronsGroup3D.children.length > 0) electronsGroup3D.remove(electronsGroup3D.children[0]);
+    electronList = [];
+
+    // 1. 建立原子核 (質子 + 中子)
+    const totalNucleons = Z + N;
+    let particles = [];
+    for (let i = 0; i < Z; i++) particles.push('proton');
+    for (let i = 0; i < N; i++) particles.push('neutron');
+
+    // 洗牌亂序打散，使質子中子交錯
+    for (let i = particles.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [particles[i], particles[j]] = [particles[j], particles[i]];
+    }
+
+    const goldenRatio = (1 + Math.sqrt(5)) / 2;
+    const nucleusRadiusScale = 0.52 * Math.pow(Math.max(1, totalNucleons), 1/3);
+
+    for (let i = 0; i < totalNucleons; i++) {
+      const type = particles[i];
+      const mesh = new THREE.Mesh(type === 'proton' ? protonGeo : neutronGeo, type === 'proton' ? protonMat : neutronMat);
+      
+      const theta = 2 * Math.PI * i / goldenRatio;
+      const phi = Math.acos(1 - 2 * (i + 0.5) / Math.max(1, totalNucleons));
+      const r = nucleusRadiusScale * Math.pow((i + 1) / totalNucleons, 0.5);
+
+      mesh.position.set(
+        r * Math.sin(phi) * Math.cos(theta),
+        r * Math.sin(phi) * Math.sin(theta),
+        r * Math.cos(phi)
+      );
+
+      // 質子朝外旋轉，確保「+」號面向外側
+      if (type === 'proton') {
+        mesh.lookAt(mesh.position.clone().multiplyScalar(2));
+      }
+
+      nucleusGroup3D.add(mesh);
+    }
+
+    // 2. 建立分層電子軌道與繞核電子 (取代電子雲)
+    const shellCounts = getShellDistribution(Z);
+    const baseOrbitRadius = Math.max(2.5, nucleusRadiusScale + 1.6);
+    const orbitStep = 1.3;
+
+    shellCounts.forEach((countInShell, shellIdx) => {
+      const orbitRadius = baseOrbitRadius + shellIdx * orbitStep;
+
+      // 軌道圓環線
+      const ringGeo = new THREE.RingGeometry(orbitRadius - 0.02, orbitRadius + 0.02, 64);
+      const ringMat = new THREE.MeshBasicMaterial({ 
+        color: 0x38bdf8, 
+        side: THREE.DoubleSide, 
+        transparent: true, 
+        opacity: 0.35 
+      });
+      const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+      
+      // 給不同電子層傾斜角度增強 3D 立體感
+      const tiltX = (shellIdx % 2 === 0 ? 0.3 : -0.3);
+      const tiltZ = (shellIdx % 2 === 0 ? -0.2 : 0.2);
+      ringMesh.rotation.x = Math.PI / 2 + tiltX;
+      ringMesh.rotation.z = tiltZ;
+      orbitsGroup3D.add(ringMesh);
+
+      // 創建該層的電子
+      for (let e = 0; e < countInShell; e++) {
+        const electronMesh = new THREE.Mesh(electronGeo, electronMat);
+        const baseAngle = (e / countInShell) * Math.PI * 2;
+        const speed = (2.2 / (shellIdx + 1)); // 內層快，外層慢
+
+        electronList.push({
+          mesh: electronMesh,
+          radius: orbitRadius,
+          baseAngle: baseAngle,
+          speed: speed,
+          tiltX: tiltX,
+          tiltZ: tiltZ
+        });
+        electronsGroup3D.add(electronMesh);
+      }
+    });
+  }
+
+  const protonRange = document.getElementById('proton-range');
+  const neutronRange = document.getElementById('neutron-range');
+
+  function updateUI3D() {
+    const Z = parseInt(protonRange.value);
+    const N = parseInt(neutronRange.value);
+    const elem = getElemData3D(Z);
+
+    document.getElementById('proton-val').innerText = Z;
+    document.getElementById('neutron-val').innerText = N;
+
+    document.getElementById('card-symbol').innerText = elem.s;
+    document.getElementById('card-name').innerText = elem.name;
+    document.getElementById('card-atomic').innerText = Z;
+    document.getElementById('card-mass').innerText = Z + N;
+
+    document.getElementById('val-charge').innerText = `+${Z}`;
+    document.getElementById('val-electrons').innerText = Z;
+    document.getElementById('val-atomic-mass').innerText = Z + N;
+
+    updateAtomModel3D(Z, N);
+  }
+
+  function changeProton(delta) {
+    if (state.locked) return;
+    let z = parseInt(protonRange.value) + delta;
+    z = Math.max(1, Math.min(18, z));
+    protonRange.value = z;
+    neutronRange.value = getElemData3D(z).n;
+    updateUI3D();
+  }
+
+  function changeNeutron(delta) {
+    if (state.locked) return;
+    let n = parseInt(neutronRange.value) + delta;
+    n = Math.max(0, Math.min(22, n));
+    neutronRange.value = n;
+    updateUI3D();
+  }
+
+  protonRange.addEventListener('input', () => {
+    if (state.locked) return;
+    neutronRange.value = getElemData3D(parseInt(protonRange.value)).n;
+    updateUI3D();
+  });
+
+  neutronRange.addEventListener('input', () => {
+    if (state.locked) return;
+    updateUI3D();
+  });
+
+  // 動畫循環
+  let clock3D = new THREE.Clock();
+  function animate3D() {
+    requestAnimationFrame(animate3D);
+    const elapsedTime = clock3D.getElapsedTime();
+
+    if (nucleusGroup3D && renderer3D) {
+      nucleusGroup3D.rotation.y += 0.003;
+
+      // 計算電子在軌道上的旋轉位置
+      electronList.forEach(e => {
+        const angle = e.baseAngle + elapsedTime * e.speed;
+        let x = e.radius * Math.cos(angle);
+        let z = e.radius * Math.sin(angle);
+        let y = 0;
+
+        // 應用軌道傾斜變換
+        const pos = new THREE.Vector3(x, y, z);
+        pos.applyAxisAngle(new THREE.Vector3(1, 0, 0), e.tiltX);
+        pos.applyAxisAngle(new THREE.Vector3(0, 0, 1), e.tiltZ);
+
+        e.mesh.position.copy(pos);
+      });
+
+      controls3D.update();
+      renderer3D.render(scene3D, camera3D);
+    }
+  }
+
+  // 進入問答階段（自動鎖定模型區）
+  function startQuestions() {
+    state.locked = true;
+
+    // 禁用所有控制選項
+    document.getElementById('proton-range').disabled = true;
+    document.getElementById('neutron-range').disabled = true;
+    document.querySelectorAll('.btn-step').forEach(btn => btn.disabled = true);
+    
+    // 顯示鎖定提示與變更控制介面視覺
+    document.getElementById('lock-banner').classList.remove('hidden');
+    document.getElementById('control-panel').classList.add('opacity-50', 'pointer-events-none');
+
+    // 畫面佈局切換
+    const modelSec = document.getElementById('model-section');
+    modelSec.classList.remove('lg:col-span-12');
+    modelSec.classList.add('lg:col-span-7');
+    
+    const qSec = document.getElementById('questions-section');
+    qSec.classList.remove('hidden');
+    qSec.classList.add('flex');
+    
+    document.getElementById('btn-go-questions').style.display = 'none';
+
+    // 觸發 3D 畫布重繪尺寸
+    setTimeout(() => {
+      resize3DCanvas();
+      qSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 150);
+  }
+
+  // 答題邏輯
+  function answerQ(qNum, isCorrect, btnElement) {
+    const opts = document.getElementById(`q${qNum}-opts`).children;
+    for(let btn of opts) {
+      btn.disabled = true; 
+      btn.classList.add('opacity-50');
+    }
+    btnElement.classList.remove('opacity-50');
+    
+    const msg = document.getElementById(`q${qNum}-msg`);
+    msg.classList.remove('hidden');
+    
+    if(isCorrect) {
+      btnElement.classList.add('correct');
+      msg.textContent = '✅ 答對了！邏輯推導完全正確。';
+      msg.className = 'mt-2 text-xs font-bold px-3 py-2 rounded bg-emerald-950/80 text-emerald-400 border border-emerald-800';
+    } else {
+      btnElement.classList.add('wrong');
+      msg.textContent = '❌ 答錯了，請對照左側鎖定的模型數據重新思考。';
+      msg.className = 'mt-2 text-xs font-bold px-3 py-2 rounded bg-red-950/80 text-red-400 border border-red-800';
+    }
+  }
+
+  // 進入總結
+  function startSummary() {
+    const sumSec = document.getElementById('summary-section');
+    sumSec.classList.remove('hidden');
+    
+    setTimeout(() => {
+      sumSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 150);
+  }
+
+  // 初始化
+  init3D();
+  animate3D();
+</script>
+</body>
+</html>
